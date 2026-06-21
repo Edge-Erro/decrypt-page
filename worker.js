@@ -1,8 +1,9 @@
 // ============================================================
-// 完整 Worker：加密 + 解密，支持 CORS
+// 完整 Worker：加密 + 解密 + 定时销毁（KV 过期）
 // 加密端点 /encrypt （公开，无需鉴权）
 // 解密端点 /decrypt （需要 X-API-Key 验证）
 // 环境变量：ENCRYPTION_KEY（32位字符串）, API_KEY（解密用）
+// KV 绑定：EXPIRY_KV（命名空间）
 // ============================================================
 
 export default {
@@ -98,7 +99,17 @@ async function handleEncrypt(request, env) {
         combined.set(new Uint8Array(encrypted), iv.length);
         const base64 = btoa(String.fromCharCode(...combined));
 
-        return jsonResponse({ success: true, encrypted: base64 }, 200);
+        // ---------- 新增：存入 KV 并设置过期时间（5分钟） ----------
+        // 过期时间（秒），可从请求体获取自定义值，默认 300 秒（5分钟）
+        const expiresIn = body.expires_in || 300; // 单位：秒
+        // 存入 KV，使用 expirationTtl 自动过期
+        await env.EXPIRY_KV.put(base64, "1", { expirationTtl: expiresIn });
+
+        return jsonResponse({ 
+            success: true, 
+            encrypted: base64,
+            expires_in: expiresIn // 返回有效期，方便调用者知道
+        }, 200);
     } catch (e) {
         return jsonResponse({ success: false, error: e.message }, 500);
     }
@@ -111,6 +122,12 @@ async function handleDecrypt(request, env) {
         const encryptedBase64 = body.encrypted;
         if (!encryptedBase64) {
             return jsonResponse({ error: "Missing 'encrypted' field" }, 400);
+        }
+
+        // ---------- 新增：检查 KV 中是否存在该密文 ----------
+        const exists = await env.EXPIRY_KV.get(encryptedBase64);
+        if (exists === null) {
+            return jsonResponse({ error: "密文已过期或已被使用" }, 410); // 410 Gone
         }
 
         // 从 Base64 还原为 Uint8Array
@@ -142,6 +159,9 @@ async function handleDecrypt(request, env) {
         const decoder = new TextDecoder();
         const plaintext = decoder.decode(decrypted);
 
+        // ---------- 新增：解密成功后立即删除 KV 记录（一次性使用） ----------
+        await env.EXPIRY_KV.delete(encryptedBase64);
+
         return jsonResponse({ success: true, decrypted: plaintext }, 200);
     } catch (e) {
         return jsonResponse({ success: false, error: e.message }, 500);
@@ -157,4 +177,4 @@ function jsonResponse(data, status = 200) {
             "Access-Control-Allow-Origin": "*",
         },
     });
-}
+    }
