@@ -2,33 +2,136 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>号码解密</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>解密工具</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 20px;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 40px 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+    }
+    .card h2 {
+      font-size: 24px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .card p.desc {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 25px;
+    }
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .input-group input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 16px;
+      outline: none;
+      transition: 0.2s;
+    }
+    .input-group input:focus {
+      border-color: #667eea;
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+      letter-spacing: 1px;
+    }
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+    #result {
+      margin-top: 25px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      font-size: 22px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      color: #333;
+      word-break: break-all;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .error {
+      color: #e74c3c !important;
+      font-weight: normal !important;
+      font-size: 16px !important;
+    }
+  </style>
 </head>
-<body style="max-width:400px;margin:50px auto;font-family:sans-serif;">
-  <h3>🔐 请输入解密密码</h3>
-  <input type="password" id="pwd" placeholder="密码" style="width:100%;padding:8px;"><br><br>
-  <button onclick="decrypt()" style="padding:10px 30px;">解密</button>
-  <hr>
-  <div id="result" style="font-size:20px;font-family:monospace;"></div>
+<body>
+  <div class="card">
+    <h2>🔐 号码解密</h2>
+    <p class="desc">输入密码以查看内容</p>
+    <div class="input-group">
+      <input type="password" id="pwd" placeholder="请输入密码">
+    </div>
+    <button class="btn" onclick="decrypt()">解 密</button>
+    <div id="result"></div>
+  </div>
 
   <script>
-    // ====== 这里替换成你的密文（保留引号） ======
+    // ====== ！！替换为你验证过的密文！！ ======
     const CIPHER_TEXT = "cryptcode-91781367";
     // =============================================
 
     function decrypt() {
       const key = document.getElementById('pwd').value.trim();
-      if (!key) return;
+      const resultDiv = document.getElementById('result');
+      if (!key) {
+        resultDiv.innerText = '请输入密码';
+        resultDiv.className = 'error';
+        return;
+      }
       try {
         const bytes = CryptoJS.AES.decrypt(CIPHER_TEXT, key);
         const phone = bytes.toString(CryptoJS.enc.Utf8);
-        if (!phone) throw new Error('解密失败');
-        document.getElementById('result').innerText = phone;
+        if (!phone) throw new Error('密码错误');
+        resultDiv.innerText = phone;
+        resultDiv.className = '';
       } catch (e) {
-        document.getElementById('result').innerText = '解密失败，请检查密码';
+        resultDiv.innerText = '解密失败，检查密码';
+        resultDiv.className = 'error';
       }
     }
+
+    // 回车触发解密
+    document.getElementById('pwd').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') decrypt();
+    });
   </script>
 </body>
 </html>
